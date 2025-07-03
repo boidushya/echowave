@@ -214,9 +214,7 @@ func parseFlags() *Config {
 	}
 
 	if flag.NArg() < 1 {
-		errorMsg("Please provide a YouTube URL or audio file path")
-		info("Use -help for usage information")
-		os.Exit(1)
+		*help = true
 	}
 
 	return &Config{
