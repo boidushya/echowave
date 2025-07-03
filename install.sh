@@ -14,7 +14,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO="boidu/echowave"
+REPO="boidushya/echowave"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="echowave"
 
