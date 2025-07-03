@@ -1,7 +1,7 @@
-# 🎵 EchoWave
+<h1 align="center">EchoWave</h1>
 
 <div align="center">
-  <h3>🎤 Transform audio into lyrics with AI-powered transcription</h3>
+  <h3>Transform audio into lyrics with AI-powered transcription</h3>
   <p>Part of the <a href="https://better-lyrics.boidu.dev" style="color: #FF0000; font-weight: bold;">better-lyrics</a> ecosystem</p>
 </div>
 
