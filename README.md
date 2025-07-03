@@ -22,14 +22,14 @@
 **Install EchoWave:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/boidu/echowave/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/boidushya/echowave/main/install.sh | bash
 ```
 
 *The install script automatically detects your platform, downloads dependencies, and sets up EchoWave.*
 
 **Alternative installation methods:**
-- 📦 [Download from releases](https://github.com/boidu/echowave/releases) - Manual installation
-- 🔨 Build from source: `git clone https://github.com/boidu/echowave.git && cd echowave && ./build.sh`
+- 📦 [Download from releases](https://github.com/boidushya/echowave/releases) - Manual installation
+- 🔨 Build from source: `git clone https://github.com/boidushya/echowave.git && cd echowave && ./build.sh`
 
 ### Usage
 
