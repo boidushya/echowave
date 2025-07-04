@@ -59,3 +59,7 @@ dist/
 # Transcription output files
 *.lrc
 *.json
+CLAUDE.md
+
+# local builds
+echowave

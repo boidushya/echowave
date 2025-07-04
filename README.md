@@ -45,6 +45,12 @@ echowave -model=medium -language=es -output=transcript audio.mp3
 
 # Custom output directory
 echowave -output-dir=transcripts https://youtube.com/watch?v=xyz
+
+# Verbose output (show tool outputs)
+echowave -verbose audio.mp3
+
+# Disable accuracy heatmap
+echowave -heatmap=false audio.mp3
 ```
 
 ## 📖 Examples
@@ -73,11 +79,13 @@ echowave -output-dir=my-transcripts -model=medium *.mp3
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-model` | Whisper model to use | `large-v3` |
+| `-model` | Whisper model to use | `medium` |
 | `-language` | Language for transcription | `en` |
 | `-audio-format` | Audio format for YouTube downloads | `mp3` |
-| `-output-dir` | Output directory for files | `dist` |
+| `-output-dir` | Output directory for files | `.` |
 | `-output` | Custom output filename (without extension) | Audio filename |
+| `-verbose` | Show detailed output from tools | `false` |
+| `-heatmap` | Show transcription accuracy heatmap | `true` |
 | `-help` | Show help message | - |
 
 ### Available Whisper Models
@@ -87,7 +95,7 @@ echowave -output-dir=my-transcripts -model=medium *.mp3
 | `tiny` | 39M | ⚡⚡⚡⚡⚡ | ⭐⭐ |
 | `base` | 74M | ⚡⚡⚡⚡ | ⭐⭐⭐ |
 | `small` | 244M | ⚡⚡⚡ | ⭐⭐⭐⭐ |
-| `medium` | 769M | ⚡⚡ | ⭐⭐⭐⭐⭐ |
+| `medium` | 749M | ⚡⚡ | ⭐⭐⭐⭐⭐ |
 | `large-v3` | 1550M | ⚡ | ⭐⭐⭐⭐⭐ |
 
 ## 🌍 Supported Languages
@@ -112,6 +120,16 @@ EchoWave generates two files:
 [00:25.78] This is only a test
 ```
 
+### Accuracy Heatmap
+
+By default, EchoWave displays a color-coded visualization of transcription accuracy. Use `-heatmap=false` to disable this feature.
+
+- 🟢 **High confidence (>0.8)** - Green text indicates words with high transcription confidence
+- 🟡 **Medium confidence (0.5-0.8)** - Yellow text shows moderately confident transcription
+- 🔴 **Low confidence (<0.5)** - Red text highlights uncertain or potentially incorrect words
+
+This feature helps identify sections that may need manual review or correction.
+
 ## 🔧 Advanced Usage
 
 ### Batch Processing
@@ -131,11 +149,11 @@ The tool uses optimized Whisper settings:
 ### Integration with Other Tools
 ```bash
 # Convert to SRT format using external tool
-echowave song.mp3 && lrc2srt dist/song.lrc
+echowave song.mp3 && lrc2srt song.lrc
 
 # Combine with video processing
 echowave https://youtube.com/watch?v=xyz
-ffmpeg -i video.mp4 -vf subtitles=dist/video.lrc output.mp4
+ffmpeg -i video.mp4 -vf subtitles=video.lrc output.mp4
 ```
 
 ## 🛠️ Development

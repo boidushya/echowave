@@ -6,7 +6,15 @@ import (
 	"time"
 )
 
-// ANSI color codes
+const (
+	spinnerSleepDuration = 100 * time.Millisecond
+	clearLinePadding     = 20
+	boxPadding           = 4
+	boxBorderPadding     = 2
+	boxContentPadding    = 3
+)
+
+// ANSI color codes.
 const (
 	Reset     = "\033[0m"
 	Bold      = "\033[1m"
@@ -14,8 +22,8 @@ const (
 	Italic    = "\033[3m"
 	Underline = "\033[4m"
 	Blink     = "\033[5m"
-	
-	// Colors
+
+	// Colors.
 	Black   = "\033[30m"
 	Red     = "\033[31m"
 	Green   = "\033[32m"
@@ -24,8 +32,8 @@ const (
 	Magenta = "\033[35m"
 	Cyan    = "\033[36m"
 	White   = "\033[37m"
-	
-	// Bright colors
+
+	// Bright colors.
 	BrightBlack   = "\033[90m"
 	BrightRed     = "\033[91m"
 	BrightGreen   = "\033[92m"
@@ -34,8 +42,8 @@ const (
 	BrightMagenta = "\033[95m"
 	BrightCyan    = "\033[96m"
 	BrightWhite   = "\033[97m"
-	
-	// Background colors
+
+	// Background colors.
 	BgBlack   = "\033[40m"
 	BgRed     = "\033[41m"
 	BgGreen   = "\033[42m"
@@ -46,7 +54,7 @@ const (
 	BgWhite   = "\033[47m"
 )
 
-// Theme colors
+// Theme colors.
 var (
 	PrimaryColor   = BrightBlue
 	SecondaryColor = BrightCyan
@@ -55,17 +63,18 @@ var (
 	ErrorColor     = BrightRed
 	InfoColor      = BrightMagenta
 	MutedColor     = BrightBlack
-	BrandColor     = BrightRed // For better-lyrics branding
+	BrandColor     = BrightRed
 )
 
-// Gradient colors for the logo
+// gradientColors defines 256-color ANSI escape sequences for logo gradient effect.
+// Progresses from bright blue through cyan tones to light blue for visual appeal.
 var gradientColors = []string{
-	"\033[38;5;39m",  // Bright blue
-	"\033[38;5;45m",  // Bright cyan
-	"\033[38;5;51m",  // Cyan
-	"\033[38;5;87m",  // Light cyan
-	"\033[38;5;123m", // Light blue
-	"\033[38;5;159m", // Very light blue
+	"\033[38;5;39m",
+	"\033[38;5;45m",
+	"\033[38;5;51m",
+	"\033[38;5;87m",
+	"\033[38;5;123m",
+	"\033[38;5;159m",
 }
 
 func colorize(text, color string) string {
@@ -76,22 +85,15 @@ func bold(text string) string {
 	return Bold + text + Reset
 }
 
-func dim(text string) string {
-	return Dim + text + Reset
-}
-
-func italic(text string) string {
-	return Italic + text + Reset
-}
-
 func underline(text string) string {
 	return Underline + text + Reset
 }
 
 func prefix() string {
-	return colorize("[", MutedColor) + 
-		   colorize("echowave", PrimaryColor) + 
-		   colorize("]", MutedColor) + " "
+	return colorize("[", SecondaryColor) +
+		colorize("echo", PrimaryColor) +
+		colorize("wave", SuccessColor) +
+		colorize("]", SecondaryColor) + " "
 }
 
 func logo() string {
@@ -103,49 +105,29 @@ func logo() string {
 		"  ███████╗╚██████╗██║  ██║╚██████╔╝╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗",
 		"  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝",
 	}
-	
+
 	var result strings.Builder
 	for i, line := range logoLines {
 		colorIndex := i % len(gradientColors)
 		result.WriteString(gradientColors[colorIndex] + line + Reset + "\n")
 	}
-	
+
 	return result.String()
 }
 
 func spinner(message string, duration time.Duration) {
 	spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	
+
 	fmt.Print(prefix() + colorize(message, InfoColor) + " ")
-	
+
 	start := time.Now()
 	i := 0
 	for time.Since(start) < duration {
 		fmt.Printf("\r%s%s %s", prefix(), colorize(message, InfoColor), colorize(spinChars[i%len(spinChars)], PrimaryColor))
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(spinnerSleepDuration)
 		i++
 	}
-	fmt.Print("\r" + strings.Repeat(" ", len(message)+20) + "\r")
-}
-
-func progressBar(message string, current, total int) {
-	barWidth := 40
-	progress := float64(current) / float64(total)
-	filled := int(progress * float64(barWidth))
-	
-	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
-	percentage := int(progress * 100)
-	
-	fmt.Printf("\r%s%s %s %s %d%%", 
-		prefix(),
-		colorize(message, InfoColor),
-		colorize("[", MutedColor),
-		colorize(bar, PrimaryColor),
-		percentage)
-	
-	if current == total {
-		fmt.Println()
-	}
+	fmt.Print("\r" + strings.Repeat(" ", len(message)+clearLinePadding) + "\r")
 }
 
 func success(message string) {
@@ -196,11 +178,11 @@ func link(url string) string {
 	return underline(colorize(url, BrightCyan))
 }
 
-// Box drawing characters for fancy borders
+// Box drawing characters for fancy borders.
 func box(title, content string) string {
 	lines := strings.Split(content, "\n")
 	maxWidth := 0
-	
+
 	// Find the maximum width
 	if len(title) > maxWidth {
 		maxWidth = len(title)
@@ -210,46 +192,39 @@ func box(title, content string) string {
 			maxWidth = len(line)
 		}
 	}
-	
+
 	// Add padding
-	width := maxWidth + 4
-	
+	width := maxWidth + boxPadding
+
 	var result strings.Builder
-	
+
 	// Top border
-	result.WriteString(colorize("╭", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("╮", PrimaryColor) + "\n")
-	
+	topBorder := colorize("╭", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("╮", PrimaryColor) + "\n"
+	result.WriteString(topBorder)
+
 	// Title
 	if title != "" {
-		padding := (width - len(title) - 2) / 2
-		result.WriteString(colorize("│", PrimaryColor) + strings.Repeat(" ", padding) + colorize(bold(title), PrimaryColor) + strings.Repeat(" ", width-len(title)-padding-2) + colorize("│", PrimaryColor) + "\n")
-		result.WriteString(colorize("├", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("┤", PrimaryColor) + "\n")
+		padding := (width - len(title) - boxBorderPadding) / boxBorderPadding
+		titleLine := colorize("│", PrimaryColor) + strings.Repeat(" ", padding) + colorize(bold(title), PrimaryColor) + strings.Repeat(" ", width-len(title)-padding-2) + colorize("│", PrimaryColor) + "\n"
+		result.WriteString(titleLine)
+		midBorder := colorize("├", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("┤", PrimaryColor) + "\n"
+		result.WriteString(midBorder)
 	}
-	
+
 	// Content
 	for _, line := range lines {
 		if line == "" {
-			result.WriteString(colorize("│", PrimaryColor) + strings.Repeat(" ", width-2) + colorize("│", PrimaryColor) + "\n")
+			result.WriteString(colorize("│", PrimaryColor) + strings.Repeat(" ", width-boxBorderPadding) + colorize("│", PrimaryColor) + "\n")
 		} else {
-			padding := width - len(line) - 3
-			result.WriteString(colorize("│", PrimaryColor) + " " + line + strings.Repeat(" ", padding) + colorize("│", PrimaryColor) + "\n")
+			padding := width - len(line) - boxContentPadding
+			contentLine := colorize("│", PrimaryColor) + " " + line + strings.Repeat(" ", padding) + colorize("│", PrimaryColor) + "\n"
+			result.WriteString(contentLine)
 		}
 	}
-	
+
 	// Bottom border
-	result.WriteString(colorize("╰", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("╯", PrimaryColor) + "\n")
-	
+	bottomBorder := colorize("╰", PrimaryColor) + colorize(strings.Repeat("─", width-2), PrimaryColor) + colorize("╯", PrimaryColor) + "\n"
+	result.WriteString(bottomBorder)
+
 	return result.String()
-}
-
-func animatedText(text string, delay time.Duration) {
-	for _, char := range text {
-		fmt.Print(string(char))
-		time.Sleep(delay)
-	}
-	fmt.Println()
-}
-
-func typewriter(text string) {
-	animatedText(text, 30*time.Millisecond)
 }

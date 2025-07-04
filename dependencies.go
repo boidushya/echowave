@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// Dependency represents an external tool required for EchoWave operation.
+// Contains command name, executable path, and platform-specific installation instructions.
 type Dependency struct {
 	Name        string
 	Command     string
@@ -43,14 +45,23 @@ var dependencies = []Dependency{
 	},
 }
 
+// checkDependency verifies if a specific dependency is installed and available in the system PATH.
+// It takes a Dependency struct and attempts to locate the corresponding command using exec.LookPath.
+// Returns true if the dependency is found and executable, false otherwise. This function is used
+// to validate individual runtime requirements before proceeding with audio processing operations.
 func checkDependency(dep Dependency) bool {
 	_, err := exec.LookPath(dep.Command)
 	return err == nil
 }
 
+// showInstallInstructions displays platform-specific installation commands for a missing dependency.
+// It takes a Dependency struct and prints formatted installation instructions based on the current
+// operating system (runtime.GOOS). The output includes colored formatting with comments in secondary
+// color and commands in white. If no platform-specific instructions exist, it shows a generic
+// installation message. This function helps users resolve missing dependencies quickly.
 func showInstallInstructions(dep Dependency) {
 	subheader("Installing " + dep.Name)
-	
+
 	if instructions, exists := dep.InstallDocs[runtime.GOOS]; exists {
 		lines := strings.Split(instructions, "\n")
 		for _, line := range lines {
@@ -66,12 +77,18 @@ func showInstallInstructions(dep Dependency) {
 	fmt.Println()
 }
 
+// checkAllDependencies validates that all required external tools are installed and accessible.
+// It iterates through the global dependencies slice, checking each one using checkDependency.
+// For each dependency, it prints a success or error message with appropriate formatting.
+// If any dependencies are missing, it displays comprehensive installation instructions for
+// the current platform and returns false. Returns true only if all dependencies are satisfied,
+// allowing the main program to proceed with audio processing operations.
 func checkAllDependencies() bool {
 	step("Checking dependencies...")
-	
+
 	allPresent := true
 	var missing []Dependency
-	
+
 	for _, dep := range dependencies {
 		if checkDependency(dep) {
 			success(dep.Name + " found")
@@ -81,7 +98,7 @@ func checkAllDependencies() bool {
 			allPresent = false
 		}
 	}
-	
+
 	if !allPresent {
 		fmt.Println()
 		warning("Missing dependencies: " + strings.Join(getMissingNames(missing), ", "))
@@ -94,11 +111,15 @@ func checkAllDependencies() bool {
 		info("After installing the missing dependencies, please run the command again.")
 		return false
 	}
-	
+
 	success("All dependencies are installed!")
 	return true
 }
 
+// getMissingNames extracts the names of missing dependencies from a slice of Dependency structs.
+// It takes a slice of Dependency objects and returns a slice of strings containing just the
+// name field from each dependency. This utility function is used to create readable lists
+// of missing dependencies for error messages and user feedback during dependency checking.
 func getMissingNames(deps []Dependency) []string {
 	names := make([]string, len(deps))
 	for i, dep := range deps {
