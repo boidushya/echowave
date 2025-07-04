@@ -158,18 +158,6 @@ ffmpeg -i video.mp4 -vf subtitles=video.lrc output.mp4
 
 ## 🛠️ Development
 
-### Project Structure
-```
-echowave/
-├── main.go          # Main application logic
-├── colors.go        # Terminal colors and formatting
-├── dependencies.go  # Dependency checking
-├── errors.go        # Error handling
-├── go.mod          # Go modules
-├── dist/           # Build output
-└── README.md       # This file
-```
-
 ### Building from Source
 ```bash
 # Development build
@@ -199,9 +187,9 @@ echowave -model=base test-audio.mp3
 We welcome contributions! Please follow these steps:
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feat/dev`)
+3. Commit your changes (`git commit -m 'feat: Added stuff'`)
+4. Push to the branch (`git push origin feat/dev`)
 5. Open a Pull Request
 
 ### Development Guidelines
@@ -220,7 +208,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🌐 [better-lyrics.boidu.dev](https://better-lyrics.boidu.dev) - Main project website
 - 📚 [Whisper Documentation](https://github.com/openai/whisper)
 - 📺 [yt-dlp Documentation](https://github.com/yt-dlp/yt-dlp)
-- 🎵 [LRC Format Specification](https://en.wikipedia.org/wiki/LRC_(file_format))
 
 ---
 
