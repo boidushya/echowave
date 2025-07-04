@@ -53,28 +53,6 @@ echowave -verbose audio.mp3
 echowave -heatmap=false audio.mp3
 ```
 
-## 📖 Examples
-
-### Basic YouTube Transcription
-```bash
-echowave https://www.youtube.com/watch?v=dQw4w9WgXcQ
-```
-
-### High-Quality Transcription
-```bash
-echowave -model=large-v3 -language=en -output=my-song song.wav
-```
-
-### Spanish Audio Transcription
-```bash
-echowave -model=large-v3 -language=es -audio-format=wav spanish-song.mp3
-```
-
-### Multiple Files with Custom Directory
-```bash
-echowave -output-dir=my-transcripts -model=medium *.mp3
-```
-
 ## 🎛️ Configuration Options
 
 | Option | Description | Default |
