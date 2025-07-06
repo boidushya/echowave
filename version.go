@@ -240,6 +240,10 @@ func checkForUpdates() {
 
 	release, err := getLatestRelease()
 	if err != nil {
+		// Debug: show error if verbose mode or env var is set
+		if os.Getenv("ECHOWAVE_DEBUG") == "1" {
+			fmt.Printf("Debug: Failed to check for updates: %v\n", err)
+		}
 		return
 	}
 
