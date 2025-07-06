@@ -1,15 +1,20 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -86,7 +91,9 @@ func findBinaryAsset(release *GitHubRelease) string {
 
 	expectedName := fmt.Sprintf("echowave-%s-%s", platform, arch)
 	if platform == "windows" {
-		expectedName += ".exe"
+		expectedName += ".zip"
+	} else {
+		expectedName += ".tar.gz"
 	}
 
 	for _, asset := range release.Assets {
@@ -98,7 +105,7 @@ func findBinaryAsset(release *GitHubRelease) string {
 	return ""
 }
 
-func downloadBinary(url, path string) error {
+func downloadAndExtractBinary(url, targetPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -118,14 +125,101 @@ func downloadBinary(url, path string) error {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
 
-	file, err := os.Create(path)
+	tempDir, err := os.MkdirTemp("", "echowave-update")
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer os.RemoveAll(tempDir)
 
-	_, err = io.Copy(file, resp.Body)
-	return err
+	if strings.HasSuffix(url, ".tar.gz") {
+		return extractTarGz(resp.Body, tempDir, targetPath)
+	} else if strings.HasSuffix(url, ".zip") {
+		return extractZip(resp.Body, tempDir, targetPath)
+	}
+
+	return fmt.Errorf("unsupported archive format")
+}
+
+func extractTarGz(r io.Reader, tempDir, targetPath string) error {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			tempFile := filepath.Join(tempDir, filepath.Base(header.Name))
+			file, err := os.Create(tempFile)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			if _, err := io.Copy(file, tr); err != nil {
+				return err
+			}
+
+			if err := os.Chmod(tempFile, 0755); err != nil {
+				return err
+			}
+
+			return os.Rename(tempFile, targetPath)
+		}
+	}
+
+	return fmt.Errorf("no binary found in archive")
+}
+
+func extractZip(r io.Reader, tempDir, targetPath string) error {
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	tempFile := filepath.Join(tempDir, "archive.zip")
+	if err := os.WriteFile(tempFile, body, 0644); err != nil {
+		return err
+	}
+
+	zr, err := zip.OpenReader(tempFile)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+
+	for _, file := range zr.File {
+		if strings.HasSuffix(file.Name, ".exe") || !strings.Contains(file.Name, ".") {
+			rc, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer rc.Close()
+
+			outFile, err := os.Create(targetPath)
+			if err != nil {
+				return err
+			}
+			defer outFile.Close()
+
+			if _, err := io.Copy(outFile, rc); err != nil {
+				return err
+			}
+
+			return os.Chmod(targetPath, 0755)
+		}
+	}
+
+	return fmt.Errorf("no binary found in archive")
 }
 
 func checkForUpdates() {
@@ -186,13 +280,8 @@ func performUpdate() {
 	tempPath := execPath + ".new"
 
 	fmt.Printf("%s\n", colorize("⬇️  Downloading...", InfoColor))
-	if err := downloadBinary(downloadURL, tempPath); err != nil {
+	if err := downloadAndExtractBinary(downloadURL, tempPath); err != nil {
 		exitWithError(newError("Download failed", err))
-	}
-
-	if err := os.Chmod(tempPath, 0755); err != nil {
-		os.Remove(tempPath)
-		exitWithError(newError("Failed to set permissions", err))
 	}
 
 	fmt.Printf("%s\n", colorize("🔄 Installing...", InfoColor))
