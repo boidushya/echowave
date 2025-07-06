@@ -38,18 +38,19 @@ jobs:
     - name: Build binaries
       run: |
         VERSION=${{ steps.version.outputs.version }}
+        VERSION_CLEAN=$(echo $VERSION | sed 's/^v//')
         BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         COMMIT=$(git rev-parse --short HEAD)
         
         mkdir -p dist/
         
         # Build for multiple platforms
-        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/echowave-darwin-amd64 .
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/echowave-darwin-arm64 .
-        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/echowave-linux-amd64 .
-        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/echowave-linux-arm64 .
-        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/echowave-windows-amd64.exe .
-        GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/echowave-windows-arm64.exe .
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-darwin-arm64 .
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-linux-amd64 .
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-linux-arm64 .
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-windows-amd64.exe .
+        GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X main.VERSION=$VERSION_CLEAN" -o dist/echowave-windows-arm64.exe .
 
     - name: Create archives
       run: |
