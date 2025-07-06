@@ -222,6 +222,17 @@ func extractZip(r io.Reader, tempDir, targetPath string) error {
 	return fmt.Errorf("no binary found in archive")
 }
 
+func isWritable(dir string) bool {
+	testFile := filepath.Join(dir, ".echowave-write-test")
+	file, err := os.Create(testFile)
+	if err != nil {
+		return false
+	}
+	file.Close()
+	os.Remove(testFile)
+	return true
+}
+
 func checkForUpdates() {
 	if VERSION == "dev" {
 		return
@@ -285,6 +296,17 @@ func performUpdate() {
 	}
 
 	fmt.Printf("%s\n", colorize("🔄 Installing...", InfoColor))
+	
+	// Check if we can write to the directory
+	execDir := filepath.Dir(execPath)
+	if !isWritable(execDir) {
+		fmt.Printf("%s\n", colorize("⚠️  Root privileges required for installation", WarningColor))
+		fmt.Printf("%s\n", colorize("Please run the following command:", InfoColor))
+		fmt.Printf("%s\n", colorize(fmt.Sprintf("sudo cp %s %s", tempPath, execPath), PrimaryColor))
+		fmt.Printf("%s\n", colorize("Then run: sudo chmod +x "+execPath, PrimaryColor))
+		os.Exit(0)
+	}
+	
 	if err := os.Rename(tempPath, execPath); err != nil {
 		os.Remove(tempPath)
 		exitWithError(newError("Failed to install update", err))
