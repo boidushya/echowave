@@ -56,6 +56,8 @@ func showHelp() {
 	fmt.Printf("%s\n", colorize("        Show transcription accuracy heatmap (default true)", MutedColor))
 	fmt.Printf("%s\n", colorize("  -help", PrimaryColor))
 	fmt.Printf("%s\n", colorize("        Show this help message", MutedColor))
+	fmt.Printf("%s\n", colorize("  -version", PrimaryColor))
+	fmt.Printf("%s\n", colorize("        Show version information", MutedColor))
 	fmt.Println()
 
 	fmt.Printf("%s\n", colorize(bold("Examples"), PrimaryColor))
@@ -76,6 +78,12 @@ func showHelp() {
 	fmt.Println()
 	fmt.Printf("%s\n", colorize("# Disable accuracy heatmap", SecondaryColor))
 	fmt.Printf("%s\n", colorize("echowave -heatmap=false audio.mp3", White))
+	fmt.Println()
+	fmt.Printf("%s\n", colorize("# Show version", SecondaryColor))
+	fmt.Printf("%s\n", colorize("echowave -version", White))
+	fmt.Println()
+	fmt.Printf("%s\n", colorize("# Update to latest version", SecondaryColor))
+	fmt.Printf("%s\n", colorize("echowave update", White))
 	fmt.Println()
 
 	fmt.Printf("%s\n", colorize("Made with ❤️ by the ", MutedColor)+betterLyrics()+colorize(" team", MutedColor))
@@ -98,11 +106,21 @@ func parseFlags() *Config {
 		verbose     = flag.Bool("verbose", false, "Show detailed output from tools")
 		heatmap     = flag.Bool("heatmap", true, "Show transcription accuracy heatmap")
 		help        = flag.Bool("help", false, "Show help message")
+		version     = flag.Bool("version", false, "Show version information")
 	)
 	flag.Parse()
 
 	if *help {
 		showHelp()
+	}
+
+	if *version {
+		showVersion()
+	}
+
+	if flag.NArg() >= 1 && flag.Arg(0) == "update" {
+		performUpdate()
+		os.Exit(0)
 	}
 
 	if flag.NArg() < 1 {

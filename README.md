@@ -65,6 +65,8 @@ echowave -heatmap=false audio.mp3
 | `-verbose` | Show detailed output from tools | `false` |
 | `-heatmap` | Show transcription accuracy heatmap | `true` |
 | `-help` | Show help message | - |
+| `-version` | Show version information | - |
+| `update` | Update to latest version | - |
 
 ### Available Whisper Models
 

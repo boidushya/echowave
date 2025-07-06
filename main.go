@@ -14,6 +14,8 @@ import (
 func main() {
 	config := parseFlags()
 
+	checkForUpdates()
+
 	if !checkAllDependencies() {
 		os.Exit(1)
 	}
