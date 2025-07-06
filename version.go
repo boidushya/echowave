@@ -1,103 +1,50 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
+	"regexp"
 	"runtime"
-	"strings"
+	"strconv"
 	"time"
 )
 
 var VERSION = "dev"
 
-const (
-	GITHUB_REPO          = "boidushya/echowave"
-	GITHUB_API_URL       = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest"
-	UPDATE_CHECK_TIMEOUT = 3 * time.Second
-)
-
 type GitHubRelease struct {
 	TagName string `json:"tag_name"`
 	Assets  []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
 	} `json:"assets"`
 }
 
-func getCurrentVersion() string {
-	if VERSION != "dev" {
-		return VERSION
+func isNewerVersion(current, latest string) bool {
+	if current == "dev" {
+		return false
 	}
 
-	if version := getVersionFromGit(); version != "" {
-		return version
-	}
-	return VERSION
-}
+	re := regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)`)
 
-func getVersionFromGit() string {
-	cmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
+	currentMatch := re.FindStringSubmatch(current)
+	latestMatch := re.FindStringSubmatch(latest)
+
+	if len(currentMatch) < 4 || len(latestMatch) < 4 {
+		return false
 	}
 
-	version := strings.TrimSpace(string(output))
-	return strings.TrimPrefix(version, "v")
-}
+	for i := 1; i <= 3; i++ {
+		curr, _ := strconv.Atoi(currentMatch[i])
+		lat, _ := strconv.Atoi(latestMatch[i])
 
-func getLatestVersion() (string, error) {
-	client := &http.Client{Timeout: UPDATE_CHECK_TIMEOUT}
-	resp, err := client.Get(GITHUB_API_URL)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch latest version: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var release GitHubRelease
-	if err := json.Unmarshal(body, &release); err != nil {
-		return "", err
-	}
-
-	return strings.TrimPrefix(release.TagName, "v"), nil
-}
-
-func compareVersions(current, latest string) bool {
-	currentParts := strings.Split(current, ".")
-	latestParts := strings.Split(latest, ".")
-
-	maxLen := len(currentParts)
-	if len(latestParts) > maxLen {
-		maxLen = len(latestParts)
-	}
-
-	for i := 0; i < maxLen; i++ {
-		currentNum := 0
-		latestNum := 0
-
-		if i < len(currentParts) {
-			fmt.Sscanf(currentParts[i], "%d", &currentNum)
-		}
-		if i < len(latestParts) {
-			fmt.Sscanf(latestParts[i], "%d", &latestNum)
-		}
-
-		if latestNum > currentNum {
+		if lat > curr {
 			return true
-		} else if latestNum < currentNum {
+		}
+		if lat < curr {
 			return false
 		}
 	}
@@ -105,17 +52,96 @@ func compareVersions(current, latest string) bool {
 	return false
 }
 
+func getLatestRelease() (*GitHubRelease, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/repos/boidushya/echowave/releases/latest", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
+	}
+
+	var release GitHubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, err
+	}
+
+	return &release, nil
+}
+
+func findBinaryAsset(release *GitHubRelease) string {
+	platform := runtime.GOOS
+	arch := runtime.GOARCH
+
+	expectedName := fmt.Sprintf("echowave-%s-%s", platform, arch)
+	if platform == "windows" {
+		expectedName += ".exe"
+	}
+
+	for _, asset := range release.Assets {
+		if asset.Name == expectedName {
+			return asset.URL
+		}
+	}
+
+	return ""
+}
+
+func downloadBinary(url, path string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	return err
+}
+
 func checkForUpdates() {
-	latest, err := getLatestVersion()
+	if VERSION == "dev" {
+		return
+	}
+
+	release, err := getLatestRelease()
 	if err != nil {
 		return
 	}
 
-	current := getCurrentVersion()
-	if compareVersions(current, latest) {
+	if isNewerVersion(VERSION, release.TagName) {
 		fmt.Printf("%s %s\n",
 			colorize("🔄 Update available:", InfoColor),
-			colorize(fmt.Sprintf("v%s → v%s", current, latest), SuccessColor))
+			colorize(fmt.Sprintf("v%s → %s", VERSION, release.TagName), SuccessColor))
 		fmt.Printf("%s %s\n",
 			colorize("📦 Run", InfoColor),
 			colorize("echowave update", PrimaryColor)+colorize(" to update", InfoColor))
@@ -123,84 +149,33 @@ func checkForUpdates() {
 	}
 }
 
-func getDownloadURL(release *GitHubRelease) string {
-	var suffix string
-	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "amd64" {
-			suffix = "macos-intel"
-		} else {
-			suffix = "macos-arm64"
-		}
-	case "linux":
-		suffix = "linux-" + runtime.GOARCH
-	case "windows":
-		suffix = "windows-" + runtime.GOARCH + ".exe"
-	default:
-		return ""
-	}
-
-	for _, asset := range release.Assets {
-		if strings.Contains(asset.Name, suffix) {
-			return asset.BrowserDownloadURL
-		}
-	}
-
-	return ""
-}
-
 func performUpdate() {
 	fmt.Printf("%s\n", colorize("🔄 Checking for updates...", InfoColor))
 
-	latest, err := getLatestVersion()
+	if VERSION == "dev" {
+		fmt.Printf("%s\n", colorize("⚠️  Development version - updates not available", WarningColor))
+		return
+	}
+
+	release, err := getLatestRelease()
 	if err != nil {
 		exitWithError(newError("Failed to check for updates", err))
 	}
 
-	current := getCurrentVersion()
-	if !compareVersions(current, latest) {
+	if !isNewerVersion(VERSION, release.TagName) {
 		fmt.Printf("%s %s\n",
 			colorize("✅ Already up to date:", SuccessColor),
-			colorize("v"+current, PrimaryColor))
+			colorize("v"+VERSION, PrimaryColor))
 		return
 	}
 
 	fmt.Printf("%s %s\n",
 		colorize("📦 Updating from", InfoColor),
-		colorize(fmt.Sprintf("v%s to v%s", current, latest), PrimaryColor))
+		colorize(fmt.Sprintf("v%s to %s", VERSION, release.TagName), PrimaryColor))
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(GITHUB_API_URL)
-	if err != nil {
-		exitWithError(newError("Failed to fetch release information", err))
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		exitWithError(newError("Failed to read release information", err))
-	}
-
-	var release GitHubRelease
-	if err := json.Unmarshal(body, &release); err != nil {
-		exitWithError(newError("Failed to parse release information", err))
-	}
-
-	downloadURL := getDownloadURL(&release)
+	downloadURL := findBinaryAsset(release)
 	if downloadURL == "" {
-		exitWithError(newError("No compatible binary found for your platform", nil))
-	}
-
-	fmt.Printf("%s\n", colorize("⬇️ Downloading update...", InfoColor))
-
-	resp, err = client.Get(downloadURL)
-	if err != nil {
-		exitWithError(newError("Failed to download update", err))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		exitWithError(newError(fmt.Sprintf("Failed to download update: %d", resp.StatusCode), nil))
+		exitWithError(newError("No binary found for your platform", nil))
 	}
 
 	execPath, err := os.Executable()
@@ -208,46 +183,33 @@ func performUpdate() {
 		exitWithError(newError("Failed to get executable path", err))
 	}
 
-	tempFile := execPath + ".tmp"
-	file, err := os.Create(tempFile)
-	if err != nil {
-		exitWithError(newError("Failed to create temporary file", err))
+	tempPath := execPath + ".new"
+
+	fmt.Printf("%s\n", colorize("⬇️  Downloading...", InfoColor))
+	if err := downloadBinary(downloadURL, tempPath); err != nil {
+		exitWithError(newError("Download failed", err))
 	}
 
-	_, err = io.Copy(file, resp.Body)
-	file.Close()
-	if err != nil {
-		os.Remove(tempFile)
-		exitWithError(newError("Failed to write update", err))
+	if err := os.Chmod(tempPath, 0755); err != nil {
+		os.Remove(tempPath)
+		exitWithError(newError("Failed to set permissions", err))
 	}
 
-	err = os.Chmod(tempFile, 0755)
-	if err != nil {
-		os.Remove(tempFile)
-		exitWithError(newError("Failed to set executable permissions", err))
-	}
-
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command("cmd", "/C", "timeout", "1", "&", "move", tempFile, execPath)
-		cmd.Start()
-	} else {
-		err = os.Rename(tempFile, execPath)
-		if err != nil {
-			os.Remove(tempFile)
-			exitWithError(newError("Failed to replace executable", err))
-		}
+	fmt.Printf("%s\n", colorize("🔄 Installing...", InfoColor))
+	if err := os.Rename(tempPath, execPath); err != nil {
+		os.Remove(tempPath)
+		exitWithError(newError("Failed to install update", err))
 	}
 
 	fmt.Printf("%s %s\n",
-		colorize("✅ Successfully updated to", SuccessColor),
-		colorize("v"+latest, PrimaryColor))
-	fmt.Printf("%s\n", colorize("🎉 Restart echowave to use the new version", InfoColor))
+		colorize("✅ Updated to", SuccessColor),
+		colorize(release.TagName, PrimaryColor))
 }
 
 func showVersion() {
 	fmt.Printf("%s %s\n",
 		colorize("EchoWave", PrimaryColor),
-		colorize("v"+getCurrentVersion(), SecondaryColor))
+		colorize("v"+VERSION, SecondaryColor))
 	fmt.Printf("%s %s\n",
 		colorize("Part of the", MutedColor),
 		betterLyrics()+colorize(" ecosystem", MutedColor))
